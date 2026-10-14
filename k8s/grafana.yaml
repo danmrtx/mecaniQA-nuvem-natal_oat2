@@ -1,0 +1,511 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: monitoring
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        uid: Prometheus
+        access: proxy
+        url: http://mecaniqa-prometheus.monitoring.svc.cluster.local:9090
+        isDefault: true
+        editable: true
+        jsonData:
+          timeInterval: 5s
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-provider
+  namespace: monitoring
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: 'MecaniQA Dashboards'
+        orgId: 1
+        folder: 'MecaniQA Observability'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 10
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-mecaniqa
+  namespace: monitoring
+data:
+  mecaniqa-overview.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "liveNow": true,
+      "panels": [
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "id": 100,
+          "title": "MecâniQA Tech - Painéis de Infraestrutura & Métricas de Negócio IoT",
+          "type": "row"
+        },
+        {
+          "id": 1,
+          "title": "1. Monitoramento de CPU (Infraestrutura)",
+          "description": "Mede a utilização e consumo de tempo de CPU da aplicação IoT mecaniqa-app",
+          "type": "timeseries",
+          "gridPos": { "h": 9, "w": 12, "x": 0, "y": 1 },
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "Prometheus" },
+              "expr": "sum(rate(process_cpu_seconds_total{job=\"mecaniqa-iot-api\"}[1m])) * 100",
+              "legendFormat": "Uso Total de CPU (%)",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 25,
+                "gradientMode": "opacity"
+              },
+              "unit": "percent",
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "orange", "value": 50 },
+                  { "color": "red", "value": 75 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 2,
+          "title": "2. Monitoramento de Memória (Infraestrutura)",
+          "description": "Mede a alocação de memória RAM física (Resident Memory) dos pods da aplicação",
+          "type": "timeseries",
+          "gridPos": { "h": 9, "w": 12, "x": 12, "y": 1 },
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "Prometheus" },
+              "expr": "sum(process_resident_memory_bytes{job=\"mecaniqa-iot-api\"}) / (1024 * 1024)",
+              "legendFormat": "Memória RAM Consumida (MB)",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 25
+              },
+              "unit": "decmbytes",
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 100 },
+                  { "color": "red", "value": 150 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 3,
+          "title": "3. Erro na Aplicação (Métrica Customizada IoT)",
+          "description": "Métrica customizada mecaniqa_sensor_readings_error_total e requisições HTTP 5xx",
+          "type": "timeseries",
+          "gridPos": { "h": 9, "w": 12, "x": 0, "y": 10 },
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "Prometheus" },
+              "expr": "sum(rate(mecaniqa_sensor_readings_error_total[1m]))",
+              "legendFormat": "Erros Leituras IoT / seg",
+              "refId": "A"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "Prometheus" },
+              "expr": "sum(rate(mecaniqa_requests_total{status=~\"5..\"}[1m]))",
+              "legendFormat": "HTTP 5xx / seg",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "fillOpacity": 30
+              },
+              "unit": "reqps",
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 1 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 4,
+          "title": "4. Sucesso na Aplicação (Métrica Customizada IoT)",
+          "description": "Métrica customizada mecaniqa_sensor_readings_success_total (vazão de dados válidos)",
+          "type": "timeseries",
+          "gridPos": { "h": 9, "w": 12, "x": 12, "y": 10 },
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "Prometheus" },
+              "expr": "sum(rate(mecaniqa_sensor_readings_success_total[1m]))",
+              "legendFormat": "Sucessos Leituras IoT / seg",
+              "refId": "A"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "Prometheus" },
+              "expr": "sum(rate(mecaniqa_requests_total{status=\"200\"}[1m]))",
+              "legendFormat": "HTTP 200 OK / seg",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "fillOpacity": 20
+              },
+              "unit": "reqps",
+              "min": 0,
+              "color": { "mode": "fixed", "fixedColor": "green" }
+            }
+          }
+        }
+      ],
+      "refresh": "5s",
+      "schemaVersion": 39,
+      "tags": ["mecaniqa", "iot", "sre", "observability"],
+      "time": { "from": "now-15m", "to": "now" },
+      "timepicker": { "refresh_intervals": ["5s", "10s", "30s", "1m"] },
+      "timezone": "browser",
+      "title": "MecâniQA Tech - Visibilidade da Infraestrutura & IoT",
+      "uid": "mecaniqa-core-dashboard",
+      "version": 1
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-alerts
+  namespace: monitoring
+data:
+  alerts.yaml: |
+    apiVersion: 1
+    groups:
+      - orgId: 1
+        name: MecaniQA_Alert_Rules
+        folder: Alerts
+        interval: 10s
+        rules:
+          # 1. Alarme Infraestrutura: CPU Alta
+          - uid: alert-infra-cpu
+            title: Alarme-Infra-CPU-Alta
+            condition: C
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 60
+                  to: 0
+                datasourceUid: Prometheus
+                model:
+                  editorMode: code
+                  expr: sum(rate(process_cpu_seconds_total{job="mecaniqa-iot-api"}[1m])) * 100
+                  instant: true
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: A
+              - refId: C
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params: [75]
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: [A]
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                  datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  type: threshold
+                  refId: C
+            noDataState: OK
+            execErrState: Error
+            for: 15s
+            annotations:
+              summary: "CPU acima de 75% na infraestrutura da MecâniQA"
+              description: "O cluster detectou sobrecarga de processamento nos pods de telemetria IoT."
+              runbook_url: "runbooks/RUNBOOK-01-ALERTA-CPU-ALTA.md"
+            labels:
+              severity: critical
+              tipo: infraestrutura
+
+          # 2. Alarme Infraestrutura: Memória Alta
+          - uid: alert-infra-mem
+            title: Alarme-Infra-Memoria-Alta
+            condition: C
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 60
+                  to: 0
+                datasourceUid: Prometheus
+                model:
+                  editorMode: code
+                  expr: sum(process_resident_memory_bytes{job="mecaniqa-iot-api"}) / (1024 * 1024)
+                  instant: true
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: A
+              - refId: C
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params: [150]
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: [A]
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                  datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  type: threshold
+                  refId: C
+            noDataState: OK
+            execErrState: Error
+            for: 15s
+            annotations:
+              summary: "Consumo de memória RAM excedeu 150MB"
+              description: "Risco de OOMKilled nos pods de ingestão IoT."
+              runbook_url: "runbooks/RUNBOOK-02-ALERTA-MEMORIA-ALTA.md"
+            labels:
+              severity: warning
+              tipo: infraestrutura
+
+          # 3. Alarme Customizado Aplicação: Alta Taxa de Erros
+          - uid: alert-app-erros
+            title: Alarme-App-Taxa-Erros
+            condition: C
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 60
+                  to: 0
+                datasourceUid: Prometheus
+                model:
+                  editorMode: code
+                  expr: sum(rate(mecaniqa_sensor_readings_error_total[1m]))
+                  instant: true
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: A
+              - refId: C
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params: [1]
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: [A]
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                  datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  type: threshold
+                  refId: C
+            noDataState: OK
+            execErrState: Error
+            for: 10s
+            annotations:
+              summary: "Taxa de erro na aplicação IoT superior a 1 falha/s"
+              description: "Oficinas enviando sensores corrompidos ou erros internos da API."
+              runbook_url: "runbooks/RUNBOOK-03-ALERTA-ERROS-APLICACAO.md"
+            labels:
+              severity: critical
+              tipo: customizada_aplicacao
+
+          # 4. Alarme Customizado Aplicação: Anomalias IoT / Superaquecimento
+          - uid: alert-app-superaquecimento
+            title: Alarme-App-Superaquecimento-Motores
+            condition: C
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 60
+                  to: 0
+                datasourceUid: Prometheus
+                model:
+                  editorMode: code
+                  expr: sum(rate(mecaniqa_engine_overheat_alerts_total[1m]))
+                  instant: true
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: A
+              - refId: C
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params: [0.05]
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params: [A]
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                  datasource:
+                    name: Expression
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  type: threshold
+                  refId: C
+            noDataState: OK
+            execErrState: Error
+            for: 10s
+            annotations:
+              summary: "Pico de alertas de superaquecimento de veículos nas oficinas"
+              description: "Detectada anomalia grave em motores com temperatura > 105°C."
+              runbook_url: "runbooks/RUNBOOK-04-ALERTA-FALHAS-IOT-SUPERAQUECIMENTO.md"
+            labels:
+              severity: critical
+              tipo: customizada_aplicacao
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mecaniqa-grafana
+  namespace: monitoring
+  labels:
+    app: mecaniqa-grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mecaniqa-grafana
+  template:
+    metadata:
+      labels:
+        app: mecaniqa-grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:latest
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              value: "admin"
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: "admin"
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "true"
+            - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+              value: "Admin"
+            - name: GF_UNIFIED_ALERTING_ENABLED
+              value: "true"
+          ports:
+            - containerPort: 3000
+              name: http
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: datasources-volume
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboards-provider-volume
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboard-mecaniqa-volume
+              mountPath: /var/lib/grafana/dashboards
+            - name: alerts-volume
+              mountPath: /etc/grafana/provisioning/alerting
+      volumes:
+        - name: datasources-volume
+          configMap:
+            name: grafana-datasources
+        - name: dashboards-provider-volume
+          configMap:
+            name: grafana-dashboards-provider
+        - name: dashboard-mecaniqa-volume
+          configMap:
+            name: grafana-dashboard-mecaniqa
+        - name: alerts-volume
+          configMap:
+            name: grafana-alerts
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mecaniqa-grafana
+  namespace: monitoring
+  labels:
+    app: mecaniqa-grafana
+spec:
+  type: LoadBalancer
+  selector:
+    app: mecaniqa-grafana
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000

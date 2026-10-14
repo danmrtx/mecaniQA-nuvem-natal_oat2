@@ -21,13 +21,39 @@ services:
       - mecaniqa-net
 
   api:
-    build: ./app-java
+    build: ./app-python
     container_name: mecaniqa-app
     ports:
       - "8080:8080"
     depends_on:
       - mysql
       - redis
+    networks:
+      - mecaniqa-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: mecaniqa-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./k8s/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+    networks:
+      - mecaniqa-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: mecaniqa-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    depends_on:
+      - prometheus
     networks:
       - mecaniqa-net
 

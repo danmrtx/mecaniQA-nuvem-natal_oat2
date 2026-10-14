@@ -2,6 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mecaniqa-app
+  labels:
+    app: mecaniqa-app
 spec:
   replicas: 2
   selector:
@@ -11,22 +13,49 @@ spec:
     metadata:
       labels:
         app: mecaniqa-app
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8080"
     spec:
       containers:
         - name: api
-          image: mecaniqa-api
+          image: mecaniqa-python:v1
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
+              name: http
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: mecaniqa-app
+  labels:
+    app: mecaniqa-app
 spec:
   type: LoadBalancer
   selector:
     app: mecaniqa-app
   ports:
-    - port: 8080
+    - name: http
+      port: 8080
       targetPort: 8080
